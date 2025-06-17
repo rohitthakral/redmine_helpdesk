@@ -80,12 +80,41 @@ module RedmineHelpdeskMailHandlerPatch
 
     # reopening a closed issues by email
     custom_value = custom_field_value(issue.project,'reopen-issues-with')
-    if issue.closed? && custom_value.present? && custom_value.value.present?
-      status_id = IssueStatus.where("name = ?", custom_value.value).try(:first).try(:id)
-      unless status_id.nil?
-        issue.status_id = status_id
-        issue.assigned_to = nil
-        issue.save
+    if issue.closed?
+      reopen_status_id = ''
+      if custom_value.present? && custom_value.value.present?
+        reopen_status_id = IssueStatus.where("name = ?", custom_value.value).try(:first).try(:id)
+      end
+      if reopen_status_id.blank?
+        reopen_status_id = IssueStatus.find_by_id(2).try(:id)
+        reopen_status_id = IssueStatus.where("name = ?", "In Progress").try(:first).try(:id) if reopen_status_id.blank?
+      end
+      if reopen_status_id.present?
+        issue.update(status_id: reopen_status_id)
+        # issue.assigned_to = nil
+        # issue.save
+      end
+    else
+      if issue.assigned_to_id.present? && issue.status.try(:name).to_s == "Waiting for Customer"
+        user_members = issue.project.memberships.where(user_id: user.id)
+        if user_members.present?
+          user_roles = user_members.map(&:roles).flatten.map(&:name).compact.uniq
+          if user_roles.include?("Customer")
+            assig_members = issue.project.memberships.where(user_id: issue.assigned_to.id)
+            if assig_members.present?
+              assig_roles = assig_members.map(&:roles).flatten.map(&:name).compact.uniq
+              if assig_roles.include?("Customer")
+                memberships = issue.project.memberships.shuffle
+                ms = memberships.detect do |mem|
+                  mem.roles.map(&:name).include?("Second Lead Consultant")
+                end
+                if ms.present?
+                  issue.update(assigned_to_id: ms.user_id)
+                end
+              end
+            end
+          end
+        end
       end
     end
 
