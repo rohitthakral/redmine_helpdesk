@@ -15,7 +15,7 @@ module RedmineHelpdeskMailHandlerPatch
     #Is a user in the system with TI Email address - assign the ticket to them
     sender_email = @email.from.first
     if sender_email.include?("@targetintegration.com") || (User.current.projects.size == 1 && issue.project == User.current.projects.first)
-      issue.update_columns(update_columns({assigned_to_id: User.current.id})
+      issue.update_columns({assigned_to_id: User.current.id})
     end
 
     # add owner-email only if the author has assigned some role with
