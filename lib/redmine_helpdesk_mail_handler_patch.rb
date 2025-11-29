@@ -25,7 +25,7 @@ module RedmineHelpdeskMailHandlerPatch
 
       # any cc handling needed?
       custom_value = custom_field_value(issue.project,'cc-handling')
-      if (!@email.cc.nil?) && (custom_value.value == '1')
+      if (!@email.cc.nil?) && custom_value.present? && (custom_value.value == '1')
         carbon_copy = @email[:cc].formatted.join(', ')
         custom_value = custom_field_value(issue,'copy-to')
         custom_value.value = carbon_copy
@@ -39,25 +39,27 @@ module RedmineHelpdeskMailHandlerPatch
       issue.save
 
       custom_value = custom_field_value(issue,'owner-email')
-      if custom_value.value.to_s.strip.empty?
+      if custom_value.present? && custom_value.value.to_s.strip.empty?
         custom_value.value = sender_email
         custom_value.save(:validate => false) # skip validation!
       else
         # Email owner field was already set by some preprocess hooks.
         # So now we need to send message to another recepient.
-        sender_email = custom_value.value.to_s.strip
+        sender_email = custom_value.value.to_s.strip if custom_value.present?
       end
 
       # regular email sending to known users is done
       # on the first issue.save. So we need to send
       # the notification email to the supportclient
       # on our own.
-      HelpdeskMailer.email_to_supportclient(
-        issue, {
-          :recipient => sender_email,
-          :carbon_copy => carbon_copy
-        }
-      ).deliver
+      if sender_email.present?
+        HelpdeskMailer.email_to_supportclient(
+          issue, {
+            :recipient => sender_email,
+            :carbon_copy => carbon_copy
+          }
+        ).deliver
+      end
     end
     after_dispatch_to_default_hook issue
     return issue
@@ -140,7 +142,7 @@ module RedmineHelpdeskMailHandlerPatch
   def custom_field_value(issue,name)
     custom_field = CustomField.find_by_name(name)
     CustomValue.where(
-      "customized_id = ? AND custom_field_id = ?", issue.id, custom_field.id
+      "customized_id = ? AND custom_field_id = ?", issue.try(:id), custom_field.try(:id)
     ).first
   end
 
