@@ -40,7 +40,11 @@ module RedmineHelpdeskMailerPatch
           p = issue.project
           owner_email = issue.custom_value_for( CustomField.find_by_name('owner-email') ).value
           if !owner_email.blank? && !f.nil? && !p.nil? && p.custom_value_for(f).try(:value).blank?
-            alternative_user = owner_email
+           # alternative_user = owner_email
+            owner_address = EmailAddress.where(address: owner_email).first
+              if owner_address.present?
+                  alternative_user = owner_address.user
+              end
           end
         end
       rescue Exception => e
