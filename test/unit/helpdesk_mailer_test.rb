@@ -86,14 +86,29 @@ class HelpdeskMailerTest < ActionMailer::TestCase
   def test_first_reply
     issue = Issue.find(1)
     email = HelpdeskMailer.
-        email_to_supportclient(issue, {:recipient => "owner@example.com"}).
+        email_to_supportclient(issue, {:recipient => "owner@example.com", :first_reply => true}).
         deliver
     assert !ActionMailer::Base.deliveries.empty?
     assert_match /^redmine\.issue-1\.\d+\.[a-f0-9]+@example\.net/, email.message_id
     assert_match /redmine\.issue-1\.\d+@example\.net/, email.references
 
-    assert_equal "first reply",
+    assert_equal "first reply\n\nemail footer",
         email.body.to_s
+  end
+
+  def test_first_reply_falls_back_to_case_number_message_and_footer
+    issue = Issue.find(2)
+    s = CustomField.find_by_name('helpdesk-first-reply')
+    custom_value = CustomValue.where(
+      "customized_id = ? AND custom_field_id = ?", issue.project.id, s.id
+    ).first
+    custom_value.destroy
+
+    email = HelpdeskMailer.
+      email_to_supportclient(issue, {:recipient => "owner@example.com", :first_reply => true}).
+      deliver
+    assert !ActionMailer::Base.deliveries.empty?
+    assert_equal "Your case #{issue.id} has been created.\n\nemail footer", email.body.to_s
   end
 
   def test_edit

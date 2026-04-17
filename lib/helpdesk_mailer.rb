@@ -72,7 +72,13 @@ class HelpdeskMailer < ActionMailer::Base
       # sending out the journal note to the support client
       # or the first reply message
       reply = default_first_reply(issue) if first_reply && reply.blank?
-      t = text.present? ? "#{text}\n\n#{footer}" : reply
+      t = if text.present?
+        "#{text}\n\n#{footer}"
+      elsif footer.present?
+        "#{reply}\n\n#{footer}"
+      else
+        reply
+      end
       body = expand_macros(t, issue, journal)
 
       # precess reply-separator
