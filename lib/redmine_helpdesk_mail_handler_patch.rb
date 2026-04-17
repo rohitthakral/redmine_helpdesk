@@ -1,5 +1,9 @@
 module RedmineHelpdeskMailHandlerPatch
   private
+  def target_project
+    sender_project || super
+  end
+
   # Overrides the dispatch_to_default method to
   # set the owner-email of a new issue created by
   # an email request
@@ -11,10 +15,10 @@ module RedmineHelpdeskMailHandlerPatch
       issue.author.roles_for_project(issue.project)
     end
 
-    #73540 Email to Support@mypmstudio.com - Assign the Ticket to Correct Project
-    #Is a user in the system with TI Email address - assign the ticket to them
+    # Keep the legacy TI sender auto-assignment behavior without
+    # overriding project defaults for regular single-project senders.
     sender_email = @email.from.first.to_s
-    if sender_email.include?("@targetintegration.com") || (User.current.projects.size == 1 && issue.project == User.current.projects.first)
+    if sender_email.include?("@targetintegration.com")
       issue.update_columns({assigned_to_id: User.current.id})
     end
 
@@ -144,6 +148,19 @@ module RedmineHelpdeskMailHandlerPatch
     CustomValue.where(
       "customized_id = ? AND custom_field_id = ?", issue.try(:id), custom_field.try(:id)
     ).first
+  end
+
+  def sender_project
+    return unless user.is_a?(User) && !user.anonymous?
+
+    projects = user.memberships.active
+      .joins(:project)
+      .merge(Project.active)
+      .includes(:project)
+      .map(&:project)
+      .uniq
+
+    projects.one? ? projects.first : nil
   end
 
   def email_details
