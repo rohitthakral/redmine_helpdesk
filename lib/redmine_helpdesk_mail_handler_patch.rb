@@ -14,6 +14,8 @@ module RedmineHelpdeskMailHandlerPatch
     else
       issue.author.roles_for_project(issue.project)
     end
+    first_reply_enabled = send_first_reply_enabled?(issue.project)
+    first_reply_sent = false
 
     # Keep the legacy TI sender auto-assignment behavior without
     # overriding project defaults for regular single-project senders.
@@ -57,14 +59,25 @@ module RedmineHelpdeskMailHandlerPatch
       # the notification email to the supportclient
       # on our own.
       if sender_email.present?
-        HelpdeskMailer.email_to_supportclient(
-          issue, {
-            :recipient => sender_email,
-            :carbon_copy => carbon_copy
-          }
-        ).deliver
+        mail_params = {
+          :recipient => sender_email,
+          :carbon_copy => carbon_copy
+        }
+        mail_params[:first_reply] = true if first_reply_enabled
+        HelpdeskMailer.email_to_supportclient(issue, mail_params).deliver
+        first_reply_sent = true if first_reply_enabled
       end
     end
+
+    if first_reply_enabled && !first_reply_sent && sender_email.present?
+      HelpdeskMailer.email_to_supportclient(
+        issue, {
+          :recipient => sender_email,
+          :first_reply => true
+        }
+      ).deliver
+    end
+
     after_dispatch_to_default_hook issue
     return issue
   end
@@ -161,6 +174,14 @@ module RedmineHelpdeskMailHandlerPatch
       .uniq
 
     projects.one? ? projects.first : nil
+  end
+
+  def send_first_reply_enabled?(project)
+    custom_field = CustomField.find_by_name('helpdesk-send-first-reply')
+    value = project&.custom_value_for(custom_field).try(:value)
+    return true if value.nil?
+
+    ActiveModel::Type::Boolean.new.cast(value)
   end
 
   def email_details

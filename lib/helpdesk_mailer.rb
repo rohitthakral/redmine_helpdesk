@@ -22,6 +22,7 @@ class HelpdeskMailer < ActionMailer::Base
     journal = params[:journal]
     text = params[:text]
     carbon_copy = params[:carbon_copy]
+    first_reply = params[:first_reply]
 
     redmine_headers 'Project' => issue.project.identifier,
                     'Issue-Id' => issue.id,
@@ -67,9 +68,10 @@ class HelpdeskMailer < ActionMailer::Base
       headers[:references] = @references_objects.collect {|o| "<#{self.class.references_for(o)}>"}.join(' ')
     end
     # create mail object to deliver
-    mail = if text.present? || reply.present?
+    mail = if text.present? || first_reply
       # sending out the journal note to the support client
       # or the first reply message
+      reply = default_first_reply(issue) if first_reply && reply.blank?
       t = text.present? ? "#{text}\n\n#{footer}" : reply
       body = expand_macros(t, issue, journal)
 
@@ -149,5 +151,9 @@ class HelpdeskMailer < ActionMailer::Base
   def references(object)
     @references_objects ||= []
     @references_objects << object
+  end
+
+  def default_first_reply(issue)
+    "Your case ##issue-id## has been created."
   end
 end
