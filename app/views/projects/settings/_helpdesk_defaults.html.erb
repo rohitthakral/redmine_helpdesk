@@ -1,0 +1,31 @@
+<%= form_tag redmine_helpdesk_project_settings_path(@project),
+             :method => :put,
+             :id => 'helpdesk-defaults-form' %>
+  <div class="box tabular">
+    <% defaults = RedmineHelpdeskProjectDefaults.find_or_initialize(@project) %>
+    <p>
+      <%= label_tag 'helpdesk_defaults_tracker_id', l(:field_default_tracker) %>
+      <%= select_tag 'helpdesk_defaults[tracker_id]',
+                     options_from_collection_for_select(
+                       @project.trackers.sorted,
+                       :id,
+                       :name,
+                       defaults.tracker_id
+                     ),
+                     :include_blank => true,
+                     :id => 'helpdesk_defaults_tracker_id' %>
+    </p>
+    <p>
+      <%= label_tag 'helpdesk_defaults_default_assignee_id', l(:field_default_assigned_to) %>
+      <%= select_tag 'helpdesk_defaults[default_assignee_id]',
+                     principals_options_for_select(
+                       (@project.assignable_users.to_a + [defaults.default_assignee]).uniq.compact,
+                       defaults.default_assignee
+                     ),
+                     :include_blank => true,
+                     :id => 'helpdesk_defaults_default_assignee_id' %>
+    </p>
+  </div>
+
+  <p><%= submit_tag l(:button_save) %></p>
+</form>

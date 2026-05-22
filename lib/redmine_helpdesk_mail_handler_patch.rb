@@ -1,14 +1,12 @@
 module RedmineHelpdeskMailHandlerPatch
   private
-  def target_project
-    sender_project || super
-  end
-
   # Overrides the dispatch_to_default method to
   # set the owner-email of a new issue created by
   # an email request
   def dispatch_to_default
     issue = receive_issue
+    moved_to_sender_project = move_issue_to_sender_project(issue)
+
     roles = if issue.author.class == AnonymousUser
       Role.where(builtin: issue.author.id)
     else
@@ -20,7 +18,7 @@ module RedmineHelpdeskMailHandlerPatch
     # Keep the legacy TI sender auto-assignment behavior without
     # overriding project defaults for regular single-project senders.
     sender_email = @email.from.first.to_s
-    if sender_email.include?("@targetintegration.com")
+    if !moved_to_sender_project && sender_email.include?("@targetintegration.com")
       issue.update_columns({assigned_to_id: User.current.id})
     end
 
@@ -163,8 +161,9 @@ module RedmineHelpdeskMailHandlerPatch
     ).first
   end
 
-  def sender_project
+  def sender_single_project
     return unless user.is_a?(User) && !user.anonymous?
+    return @sender_single_project if defined?(@sender_single_project)
 
     projects = user.memberships.active
       .joins(:project)
@@ -173,7 +172,18 @@ module RedmineHelpdeskMailHandlerPatch
       .map(&:project)
       .uniq
 
-    projects.one? ? projects.first : nil
+    @sender_single_project = projects.one? ? projects.first : nil
+  end
+
+  def move_issue_to_sender_project(issue)
+    project = sender_single_project
+    return false unless project && issue.project != project
+
+    issue.project = project
+    issue.assigned_to = nil
+    issue.save!
+    issue.reload
+    true
   end
 
   def send_first_reply_enabled?(project)
