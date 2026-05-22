@@ -1,5 +1,5 @@
 en:
   label_support_checkbox: "Send mail to supportclient"
   email_was_send_to_supportclient: "This answer was sent to the supportclient."
-  label_helpdesk_defaults: "Defaults"
+  label_helpdesk_defaults: "Helpdesk defaults"
   field_default_tracker: "Default tracker"
