@@ -129,13 +129,8 @@ module RedmineHelpdeskMailHandlerPatch
             if assig_members.present?
               assig_roles = assig_members.map(&:roles).flatten.map(&:name).compact.uniq
               if assig_roles.include?("Customer")
-                memberships = issue.project.memberships.shuffle
-                ms = memberships.detect do |mem|
-                  mem.roles.map(&:name).include?("Second Lead Consultant")
-                end
-                if ms.present?
-                  issue.update(assigned_to_id: ms.user_id)
-                end
+                sender = last_outgoing_message_sender(issue)
+                issue.update(assigned_to_id: sender.id) if sender.present?
               end
             end
           end
@@ -152,6 +147,42 @@ module RedmineHelpdeskMailHandlerPatch
     last_journal.save
 
     return last_journal
+  end
+
+  # Returns the user who last emailed the customer on this issue, or nil.
+  #
+  # send_to_owner is the only marker that a note actually left Redmine and
+  # reached the customer, so it is the only thing safe to attribute a reply to.
+  # Internal notes never carry it, and the journal patch force-clears it on
+  # private notes, which keeps both out of this lookup. Inbound customer
+  # replies are journalised by MailHandler without the controller hook that
+  # sets the flag, so they cannot match either.
+  #
+  # Returns nil rather than guessing when no outgoing message can be
+  # attributed; the caller then leaves the assignee alone.
+  def last_outgoing_message_sender(issue)
+    journal = issue.journals
+                   .where(send_to_owner: true, private_notes: false)
+                   .where.not(notes: [nil, ''])
+                   .order(:created_on, :id)
+                   .last
+    return nil if journal.nil?
+
+    sender = journal.user
+    return nil if sender.nil?
+
+    # Redmine rejects an assignee outside assignable_users, so a consultant who
+    # has since left the project, been locked, or is anonymous must not be
+    # picked here -- issue.update would fail its validation silently.
+    return nil unless issue.assignable_users.include?(sender)
+
+    # A customer may hold edit rights and tick the box themselves; handing the
+    # ticket back to them would recreate the problem this is meant to fix.
+    sender_roles = issue.project.memberships.where(user_id: sender.id)
+                        .flat_map(&:roles).map(&:name).compact.uniq
+    return nil if sender_roles.include?("Customer")
+
+    sender
   end
 
   def custom_field_value(issue,name)
