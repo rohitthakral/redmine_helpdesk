@@ -2,6 +2,7 @@ require 'redmine'
 $LOAD_PATH.unshift "#{File.dirname(__FILE__)}/lib"
 require 'redmine_helpdesk'
 require 'helpdesk_hooks'
+require 'helpdesk_attachment_link'
 require 'helpdesk_mailer'
 require 'redmine_helpdesk_project_defaults'
 require 'redmine_helpdesk_journal_patch'

@@ -48,16 +48,21 @@ class HelpdeskMailer < ActionMailer::Base
     if carbon_copy.nil?
       carbon_copy = issue.custom_value_for(ct).try(:value)
     end
-    # add any attachements
+    # add any attachements (only the ones added with this journal)
+    sent_attachments = []
     if journal.present? && text.present?
       journal.details.each do |d|
-        if d.property == 'attachment'
-          a = Attachment.find(d.prop_key)
-          begin
-            attachments[a.filename] = File.binread(a.diskfile)
-          rescue
-            # ignore rescue
-          end
+        next unless d.property == 'attachment' && d.value.present?
+        a = Attachment.find_by(:id => d.prop_key)
+        next if a.nil?
+        sent_attachments << a
+        begin
+          attachments[a.filename] = {
+            :mime_type => a.content_type.presence || 'application/octet-stream',
+            :content   => File.binread(a.diskfile)
+          }
+        rescue => e
+          Rails.logger.error "Helpdesk: could not attach #{a.filename} (##{a.id}) to supportclient email: #{e.message}"
         end
       end
     end
@@ -86,6 +91,20 @@ class HelpdeskMailer < ActionMailer::Base
       reply_separator = issue.project.custom_value_for(f).try(:value)
       if !reply_separator.blank?
         body = reply_separator + "\n\n" + body
+      end
+
+      # add download links, so the files are reachable even if the
+      # delivery method drops the mail attachments
+      if sent_attachments.any?
+        links = sent_attachments.map do |a|
+          url = helpdesk_attachment_download_url(
+            :id => a.id,
+            :token => HelpdeskAttachmentLink.token_for(a),
+            :filename => a.filename
+          )
+          "- #{a.filename}: #{url}"
+        end
+        body = "#{body}\n\n#{l(:label_attachment_plural)}:\n#{links.join("\n")}"
       end
 
       mail(
