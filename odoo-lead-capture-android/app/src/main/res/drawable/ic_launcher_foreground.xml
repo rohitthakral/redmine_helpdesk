@@ -1,0 +1,13 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- Simple card with a person glyph -->
+    <path android:fillColor="#FFFFFF"
+        android:pathData="M32,38h44a4,4 0,0 1,4 4v24a4,4 0,0 1,-4 4h-44a4,4 0,0 1,-4 -4v-24a4,4 0,0 1,4 -4z" />
+    <path android:fillColor="#714B67"
+        android:pathData="M44,50m-5,0a5,5 0,1 1,10 0a5,5 0,1 1,-10 0" />
+    <path android:fillColor="#714B67"
+        android:pathData="M36,64c0,-4.4 3.6,-7 8,-7s8,2.6 8,7z" />
+    <path android:fillColor="#714B67"
+        android:pathData="M57,47h16v3h-16zM57,54h16v3h-16zM57,61h10v3h-10z" />
+</vector>

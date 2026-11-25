@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.OdooLeadCapture" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/brand_light</item>
+        <item name="colorOnPrimary">@android:color/black</item>
+        <item name="colorSecondary">@color/brand_light</item>
+    </style>
+</resources>

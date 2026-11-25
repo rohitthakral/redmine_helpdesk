@@ -1,0 +1,57 @@
+<resources>
+    <string name="app_name">Odoo Lead Capture</string>
+    <string name="settings">Odoo connection</string>
+
+    <string name="section_card">Business card / badge</string>
+    <string name="take_photo">Take photo</string>
+    <string name="retake_photo">Retake</string>
+    <string name="remove">Remove</string>
+    <string name="no_photo">No photo yet</string>
+
+    <string name="section_contact">Contact</string>
+    <string name="hint_name">Name</string>
+    <string name="hint_company">Company name</string>
+    <string name="hint_email">Email</string>
+    <string name="hint_phone">Phone</string>
+    <string name="hint_note">Note</string>
+
+    <string name="section_audio">Voice note</string>
+    <string name="record">Record</string>
+    <string name="stop">Stop</string>
+    <string name="play">Play</string>
+    <string name="audio_none">No recording</string>
+    <string name="audio_recording">Recording… %1$s</string>
+    <string name="audio_ready">Recorded %1$s</string>
+
+    <string name="submit">Submit lead to Odoo</string>
+    <string name="clear">Clear form</string>
+    <string name="submitting">Sending to Odoo…</string>
+
+    <string name="hint_url">Server URL (e.g. https://mycompany.odoo.com)</string>
+    <string name="hint_db">Database (e.g. mycompany)</string>
+    <string name="hint_login">Login (email/username)</string>
+    <string name="hint_api_key">API key (or password)</string>
+    <string name="settings_help">Create an API key in Odoo under My Profile → Account Security → New API Key. The key is stored encrypted on this device.</string>
+    <string name="save">Save</string>
+    <string name="test_connection">Test connection</string>
+    <string name="testing">Testing…</string>
+    <string name="saved">Saved</string>
+    <string name="required">Required</string>
+
+    <string name="error_not_configured">Set up your Odoo connection first.</string>
+    <string name="error_empty">Enter at least a name, company, email, phone or take a photo.</string>
+    <string name="error_email">That email address doesn\'t look valid.</string>
+    <string name="error_no_camera">No camera app available.</string>
+    <string name="error_mic_permission">Microphone permission is needed to record a voice note.</string>
+    <string name="lead_created_title">Lead created</string>
+    <string name="lead_created_msg">Lead #%1$d was created in Odoo.</string>
+    <string name="lead_partial_msg">Lead #%1$d was created, but some attachments failed:\n%2$s</string>
+    <string name="open_in_odoo">Open in Odoo</string>
+    <string name="ok">OK</string>
+    <string name="submit_failed">Submit failed</string>
+    <string name="discard_title">Clear this lead?</string>
+    <string name="discard_msg">The photo, recording and all fields will be discarded.</string>
+    <string name="cancel">Cancel</string>
+    <string name="connection_ok">✓ Connected as %1$s (Odoo %2$s). Ready to create leads.</string>
+    <string name="connection_ok_no_rights">Connected as %1$s (Odoo %2$s), but this user cannot create CRM leads.</string>
+</resources>
