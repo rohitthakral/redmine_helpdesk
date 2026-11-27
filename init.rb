@@ -3,6 +3,7 @@ $LOAD_PATH.unshift "#{File.dirname(__FILE__)}/lib"
 require 'redmine_helpdesk'
 require 'helpdesk_hooks'
 require 'helpdesk_attachment_link'
+require 'helpdesk_inline_images'
 require 'helpdesk_mailer'
 require 'redmine_helpdesk_project_defaults'
 require 'redmine_helpdesk_journal_patch'
@@ -19,6 +20,10 @@ Redmine::Plugin.register :redmine_helpdesk do
     permission :treat_user_as_supportclient, {}
   end
 end
+
+# Embed screenshots in all outgoing Redmine emails (issue notifications
+# included), so they show in the body instead of as login-only links.
+ActionMailer::Base.register_interceptor(HelpdeskInlineImages)
 
 if defined?(Rails.configuration.to_prepare)
   Rails.configuration.to_prepare do

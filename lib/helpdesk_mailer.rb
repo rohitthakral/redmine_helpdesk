@@ -48,22 +48,14 @@ class HelpdeskMailer < ActionMailer::Base
     if carbon_copy.nil?
       carbon_copy = issue.custom_value_for(ct).try(:value)
     end
-    # add any attachements (only the ones added with this journal)
+    # attachments added with this journal (attached further down, once we
+    # know which ones are already shown inline as screenshots)
     sent_attachments = []
     if journal.present? && text.present?
       journal.details.each do |d|
         next unless d.property == 'attachment' && d.value.present?
         a = Attachment.find_by(:id => d.prop_key)
-        next if a.nil?
-        sent_attachments << a
-        begin
-          attachments[a.filename] = {
-            :mime_type => a.content_type.presence || 'application/octet-stream',
-            :content   => File.binread(a.diskfile)
-          }
-        rescue => e
-          Rails.logger.error "Helpdesk: could not attach #{a.filename} (##{a.id}) to supportclient email: #{e.message}"
-        end
+        sent_attachments << a unless a.nil?
       end
     end
     if @message_id_object
@@ -93,29 +85,60 @@ class HelpdeskMailer < ActionMailer::Base
         body = reply_separator + "\n\n" + body
       end
 
+      # screenshots in the text go inline, so they show in the body
+      html_body, inline_ids = inline_images_html(issue, body)
+
+      # attach the other files (screenshots already inline are not repeated)
+      other_attachments = sent_attachments.reject { |a| inline_ids.include?(a.id) }
+      other_attachments.each do |a|
+        begin
+          attachments[a.filename] = {
+            :mime_type => a.content_type.presence || 'application/octet-stream',
+            :content   => File.binread(a.diskfile)
+          }
+        rescue => e
+          Rails.logger.error "Helpdesk: could not attach #{a.filename} (##{a.id}) to supportclient email: #{e.message}"
+        end
+      end
+
       # add download links, so the files are reachable even if the
       # delivery method drops the mail attachments
-      if sent_attachments.any?
-        links = sent_attachments.map do |a|
+      if other_attachments.any?
+        links = other_attachments.map do |a|
           url = helpdesk_attachment_download_url(
             :id => a.id,
             :token => HelpdeskAttachmentLink.token_for(a),
             :filename => a.filename
           )
-          "- #{a.filename}: #{url}"
+          [a.filename, url]
         end
-        body = "#{body}\n\n#{l(:label_attachment_plural)}:\n#{links.join("\n")}"
+        label = l(:label_attachment_plural)
+        body = "#{body}\n\n#{label}:\n" + links.map { |name, url| "- #{name}: #{url}" }.join("\n")
+        if html_body
+          items = links.map do |name, url|
+            %(<li><a href="#{ERB::Util.h(url)}">#{ERB::Util.h(name)}</a></li>)
+          end
+          html_body = "#{html_body}\n<p>#{ERB::Util.h(label)}:</p>\n<ul>#{items.join}</ul>"
+        end
       end
 
-      mail(
+      mail_headers = {
         :from     => sender.present? && sender || Setting.mail_from,
         :reply_to => sender.present? && sender || Setting.mail_from,
         :to       => recipient,
         :subject  => subject,
-        :body     => body,
         :date     => Time.zone.now,
         :cc       => carbon_copy
-      )
+      }
+      if html_body
+        # send an html part as well, so the screenshots show in the body
+        mail(mail_headers) do |format|
+          format.text { render :plain => body }
+          format.html { render :html => html_body.html_safe }
+        end
+      else
+        mail(mail_headers.merge(:body => body))
+      end
     else
       # fallback to a regular notifications email with redmine view
       @issue = issue
@@ -176,6 +199,30 @@ class HelpdeskMailer < ActionMailer::Base
   def references(object)
     @references_objects ||= []
     @references_objects << object
+  end
+
+  # Renders +text+ with the configured text formatting and embeds the
+  # screenshots it shows as inline attachments. Handles !image.png!,
+  # ![](image.png), full /attachments/download/.. URLs and raw <img> tags
+  # (as written by the WYSIWYG editor).
+  # Returns [html, embedded attachment ids], or [nil, []] when there is no
+  # screenshot to embed (the mail then stays plain text, as before).
+  def inline_images_html(issue, text)
+    return [nil, []] if Setting.plain_text_mail?
+
+    html = Redmine::WikiFormatting.to_html(Setting.text_formatting, text)
+    cids = {}
+    html = HelpdeskInlineImages.rewrite_images(html, issue: issue) do |a|
+      cids[a.id] ||= begin
+        name = attachments[a.filename] ? "#{a.id}_#{a.filename}" : a.filename
+        attachments.inline[name] = File.binread(a.diskfile)
+        attachments[name].url
+      end
+    end
+    cids.empty? ? [nil, []] : [html, cids.keys]
+  rescue => e
+    Rails.logger.error "Helpdesk: could not embed inline images: #{e.class}: #{e.message}"
+    [nil, []]
   end
 
   def default_first_reply(issue)
